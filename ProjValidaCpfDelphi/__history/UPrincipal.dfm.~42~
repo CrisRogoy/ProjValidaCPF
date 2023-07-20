@@ -1,0 +1,109 @@
+object FrmPrincipal: TFrmPrincipal
+  Left = 0
+  Top = 0
+  BorderStyle = bsDialog
+  Caption = 'Valida CPF'
+  ClientHeight = 287
+  ClientWidth = 311
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'Tahoma'
+  Font.Style = []
+  OldCreateOrder = False
+  Position = poScreenCenter
+  OnCreate = FormCreate
+  PixelsPerInch = 96
+  TextHeight = 13
+  object LbStatus: TLabel
+    Left = 8
+    Top = 235
+    Width = 35
+    Height = 13
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+  end
+  object BtnSalvar: TButton
+    Left = 216
+    Top = 254
+    Width = 87
+    Height = 25
+    Caption = '&Salvar'
+    TabOrder = 0
+    OnClick = BtnSalvarClick
+  end
+  object MEditCpf: TMaskEdit
+    Left = 8
+    Top = 8
+    Width = 190
+    Height = 24
+    EditMask = '999.999.999\-99;0;_'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    MaxLength = 14
+    ParentFont = False
+    TabOrder = 1
+    Text = ''
+  end
+  object ChkAtivo: TCheckBox
+    Left = 204
+    Top = 8
+    Width = 97
+    Height = 17
+    Caption = 'Ativo'
+    TabOrder = 2
+  end
+  object EdtNome: TEdit
+    Left = 8
+    Top = 38
+    Width = 293
+    Height = 21
+    TabOrder = 3
+  end
+  object MemObs: TMemo
+    Left = 8
+    Top = 65
+    Width = 293
+    Height = 164
+    TabOrder = 4
+  end
+  object BtnNovo: TButton
+    Left = 8
+    Top = 254
+    Width = 87
+    Height = 25
+    Caption = '&Novo'
+    TabOrder = 5
+    OnClick = BtnNovoClick
+  end
+  object BtnPesquisar: TButton
+    Left = 112
+    Top = 254
+    Width = 87
+    Height = 25
+    Caption = '&Pesquisar'
+    TabOrder = 6
+    OnClick = BtnPesquisarClick
+  end
+  object FDCon: TFDConnection
+    Params.Strings = (
+      'LockingMode=Normal'
+      'DriverID=SQLite')
+    LoginPrompt = False
+    Left = 128
+    Top = 8
+  end
+  object FDQry: TFDQuery
+    Connection = FDCon
+    Left = 80
+    Top = 8
+  end
+end

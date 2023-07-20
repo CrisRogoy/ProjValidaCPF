@@ -1,0 +1,253 @@
+unit UPrincipal;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Mask, FireDAC.Stan.Intf, FireDAC.Stan.Option,
+  FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async,
+  FireDAC.Phys, FireDAC.Phys.SQLite, FireDAC.Phys.SQLiteDef, FireDAC.Stan.ExprFuncs, FireDAC.VCLUI.Wait, Data.DB,
+  FireDAC.Comp.Client, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt, FireDAC.Comp.DataSet;
+
+type
+  TFrmPrincipal = class(TForm)
+    BtnSalvar: TButton;
+    MEditCpf: TMaskEdit;
+    FDCon: TFDConnection;
+    FDQry: TFDQuery;
+    ChkAtivo: TCheckBox;
+    EdtNome: TEdit;
+    MemObs: TMemo;
+    BtnNovo: TButton;
+    BtnPesquisar: TButton;
+    LbStatus: TLabel;
+    procedure BtnSalvarClick(Sender: TObject);
+    function GetSemMascara(const MaskEdit: TMaskEdit): string;
+    function ValidaCPF(pValor: string): Boolean;
+    function NumerosIguais(const pString: string): Boolean;
+    procedure LimpaCampos();
+    procedure BtnNovoClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure BtnPesquisarClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  FrmPrincipal: TFrmPrincipal;
+
+implementation
+
+{$R *.dfm}
+
+procedure TFrmPrincipal.BtnNovoClick(Sender: TObject);
+begin
+  LimpaCampos();
+end;
+
+procedure TFrmPrincipal.BtnPesquisarClick(Sender: TObject);
+VAR
+  sCpf: string;
+  iAtivo: integer;
+begin
+  sCpf := GetSemMascara(MEditCpf);
+  if sCpf <> '' then
+  begin
+    FDQry.Close;
+    FDQry.SQL.Clear;
+    FDQry.SQL.Add('select * from clientes where cpf = :cpf;');
+    FDQry.ParamByName('cpf').AsString := sCpf;
+    FDQry.Open();
+    if not FDQry.IsEmpty then
+    begin
+      EdtNome.Text := FDQry.FieldByName('nome').AsString;
+      MemObs.Lines.Text := FDQry.FieldByName('Obs').AsString;
+      iAtivo := FDQry.FieldByName('ativo').AsInteger;
+      if iAtivo = 1 then // Ativo
+      begin
+        ChkAtivo.Checked := True;
+      end
+      else
+      begin
+        ChkAtivo.Checked := False;
+      end;
+    end
+    else
+    begin
+      LbStatus.Caption := 'Nenhum registro encontrado';
+      LbStatus.Font.Color := clRed;
+    end;
+  end
+  else
+  begin
+    LbStatus.Caption := 'Cpf Obrigatório !';
+    LbStatus.Font.Color := clRed;
+  end;
+end;
+
+procedure TFrmPrincipal.BtnSalvarClick(Sender: TObject);
+var
+  sCpf, sNome, sObs: string;
+  iAtivo: integer;
+begin
+  iAtivo := 0;
+
+  sCpf := GetSemMascara(MEditCpf);
+  if Trim(sCpf) = '' then
+  begin
+    LbStatus.Caption := 'CPF Vazio !';
+    LbStatus.Font.Color := clRed;
+    Abort;
+  end;
+
+  if Trim(EdtNome.Text) = '' then
+  begin
+    LbStatus.Caption := 'Não permitido salvar cliente sem nome !';
+    LbStatus.Font.Color := clRed;
+    EdtNome.SetFocus;
+    EdtNome.Clear;
+    Abort;
+  end;
+
+  if NumerosIguais(sCpf) then
+  begin
+    LbStatus.Caption := 'CPF Inválido !';
+    LbStatus.Font.Color := clRed;
+    Abort;
+  end;
+
+  if sCpf.Length = 11 then
+  begin
+    if ValidaCPF(sCpf) then
+    begin
+      try
+        sNome := TrimRight(TrimLeft(EdtNome.Text));
+        sObs := MemObs.Lines.Text.TrimLeft.TrimRight;
+
+        FDQry.Close;
+        FDQry.SQL.Clear;
+        if ChkAtivo.Checked then
+          iAtivo := 1;
+
+        FDQry.SQL.Add('INSERT OR REPLACE INTO Clientes (id, ativo, cpf, nome, Obs) ' +
+          'VALUES ((SELECT id FROM Clientes WHERE cpf = :cpf), :ativo, :cpf, :nome, :obs)');
+
+        FDQry.ParamByName('cpf').AsString := sCpf;
+        FDQry.ParamByName('ativo').AsInteger := iAtivo;
+        FDQry.ParamByName('nome').AsString := sNome;
+        FDQry.ParamByName('obs').AsString := sObs;
+
+        try
+          FDQry.ExecSQL;
+        except
+          on e: exception do
+            ShowMessage('Erro ao executar : ' + e.Message);
+        end;
+        FDQry.Close;
+      except
+        on e: exception do
+          ShowMessage('Ocorreu um erro : ' + e.Message);
+      end;
+      LbStatus.Caption := 'Registro gravado com sucesso!';
+      LbStatus.Font.Color := clGreen;
+    end
+    else
+    begin
+      LbStatus.Caption := 'CPF Inválido !';
+      LbStatus.Font.Color := clRed;
+    end;
+  end
+  else
+  begin
+    LbStatus.Caption := 'Quantidade de caracteres inválida !';
+    LbStatus.Font.Color := clRed;
+    MEditCpf.SetFocus;
+    MEditCpf.Clear;
+  end;
+end;
+
+procedure TFrmPrincipal.FormCreate(Sender: TObject);
+var
+  sCaminhoBanco: string;
+begin
+  FDCon.Close;
+  sCaminhoBanco := ExtractFilePath(Application.ExeName) + '\Banco\Banco.db3';
+  if FileExists(sCaminhoBanco) then
+  begin
+    FDCon.Params.Database := sCaminhoBanco;
+    FDCon.Connected := True;
+    FDCon.Open();
+  end
+  else
+  begin
+    ShowMessage('Banco de dados não encontrado : ' + sCaminhoBanco);
+    Application.Terminate;
+  end;
+end;
+
+function TFrmPrincipal.NumerosIguais(const pString: string): Boolean;
+var
+  I: integer;
+  cPNumero: Char;
+begin
+  Result := False;
+  if pString <> '' then
+  begin
+    cPNumero := pString[1];
+    for I := 2 to Length(pString) do
+    begin
+      if pString[I] <> cPNumero then
+        Exit;
+    end;
+    Result := True; // Todos Iguais
+  end;
+end;
+
+function TFrmPrincipal.ValidaCPF(pValor: string): Boolean;
+var
+  iAux, iAux2, I: integer;
+begin
+  iAux := 0;
+  for I := 1 to 9 do
+    iAux := iAux + StrToInt(pValor[I]) * (11 - I); // Primeiro
+
+  iAux := (iAux * 10) mod 11;
+
+  iAux2 := 0;
+  for I := 1 to 10 do
+    iAux2 := iAux2 + StrToInt(pValor[I]) * (12 - I); // Segundo
+
+  iAux2 := (iAux2 * 10) mod 11;
+  if iAux2 = 10 then
+    iAux2 := 0;
+
+  if inttostr(iAux) + inttostr(iAux2) = pValor.Substring(9, 2) then
+    Result := True;
+end;
+
+function TFrmPrincipal.GetSemMascara(const MaskEdit: TMaskEdit): string;
+var
+  mMaskEdit: TMaskEdit;
+begin
+  mMaskEdit := TMaskEdit.Create(nil);
+  try
+    mMaskEdit.EditMask := MaskEdit.EditMask;
+    mMaskEdit.Text := MaskEdit.Text;
+    Result := mMaskEdit.Text;
+  finally
+    mMaskEdit.Free;
+  end;
+end;
+
+procedure TFrmPrincipal.LimpaCampos();
+begin
+  EdtNome.Clear;
+  EdtNome.SetFocus;
+  MEditCpf.Clear;
+  MemObs.Clear;
+  ChkAtivo.Checked := False;
+end;
+
+end.
